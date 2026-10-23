@@ -276,11 +276,13 @@ actual fun PlatformPlayerSurface(
             }
 
             override fun applySubtitleStyle(style: SubtitleStyleState) {
+                bridge.setSubtitleFontPath(SubtitleFontRepository.pathOf(style.customFontFile).orEmpty())
                 bridge.applySubtitleStyle(
                     textColor = style.textColor.toMpvColorString(),
                     backgroundColor = style.backgroundColor.toMpvColorString(),
                     outlineColor = style.outlineColor.toMpvColorString(),
                     outlineSize = if (style.outlineEnabled) style.outlineWidth.toFloat() else 0f,
+                    shadowOffset = if (style.shadowEnabled) style.shadowStrength * 0.5f else 0f,
                     bold = style.bold,
                     fontSize = style.toMpvSubtitleFontSize(),
                     subPos = style.toMpvSubtitlePosition(),

@@ -1442,6 +1442,7 @@ private class NuvioLibmpvView(
         mpv.setOptionString("demuxer-max-bytes", "${libmpvCacheBytes()}").logIfMpvError("demuxer-max-bytes")
         mpv.setOptionString("demuxer-max-back-bytes", "${libmpvCacheBytes()}").logIfMpvError("demuxer-max-back-bytes")
         mpv.setOptionString("vd-lavc-film-grain", "cpu")
+        SubtitleFontFiles.directoryPath()?.let { mpv.setOptionString("sub-fonts-dir", it) }
         mpv.setPropertyBoolean("keep-open", true)
         mpv.setPropertyBoolean("input-default-bindings", true)
         mpv.setPropertyBoolean("audio-fallback-to-null", true)
@@ -1751,9 +1752,14 @@ private class NuvioLibmpvView(
                     mpv.setPropertyString("sub-border-color", style.outlineColor.toMpvColor())
                     mpv.setPropertyString("sub-border-style", style.toMpvSubtitleBorderStyle())
                     mpv.setPropertyString("sub-bold", if (style.bold) "yes" else "no")
+                    mpv.setPropertyString(
+                        "sub-font",
+                        SubtitleFontRepository.familyNameFor(style.customFontFile) ?: MPV_DEFAULT_SUBTITLE_FONT,
+                    )
                     mpv.setPropertyInt("sub-font-size", style.toMpvSubtitleFontSize())
                     mpv.setPropertyInt("sub-outline-size", style.toMpvSubtitleOutlineSize())
                     mpv.setPropertyInt("sub-border-size", style.toMpvSubtitleOutlineSize())
+                    mpv.setPropertyDouble("sub-shadow-offset", style.toMpvSubtitleShadowOffset())
                     mpv.setPropertyInt("sub-pos", (100 - style.bottomOffset / 10).coerceIn(0, 100))
                     mpv.setPropertyBoolean("sub-filter-sdh", style.stripSdh)
                     mpv.setPropertyBoolean("sub-filter-sdh-harder", style.stripSdh)
@@ -1930,6 +1936,15 @@ private fun SubtitleStyleState.toMpvSubtitleBorderStyle(): String =
         "outline-and-shadow"
     }
 
+private fun SubtitleStyleState.toMpvSubtitleShadowOffset(): Double =
+    if (shadowEnabled && toMpvSubtitleBorderStyle() != "opaque-box") {
+        shadowStrength * MPV_SUBTITLE_SHADOW_OFFSET_SCALE
+    } else {
+        0.0
+    }
+
+private const val MPV_SUBTITLE_SHADOW_OFFSET_SCALE = 0.5
+private const val MPV_DEFAULT_SUBTITLE_FONT = "sans-serif"
 private const val MPV_SUBTITLE_FONT_SIZE_SCALE = 55.0 / 18.0
 private const val MPV_SUBTITLE_FONT_SIZE_MIN = 36
 private const val MPV_SUBTITLE_FONT_SIZE_MAX = 122
@@ -2144,6 +2159,7 @@ private fun displayedVideoHeightPx(viewSize: IntSize, videoSize: VideoSize): Flo
  * so subtitles shrink and grow with the video exactly as it is shown full screen.
  */
 private fun PlayerView.applySubtitleStyle(style: SubtitleStyleState, pipVideoHeightPx: Float? = null) {
+    ExoSubtitleShadow.update(style)
     subtitleView?.apply {
         val baseBottomPaddingFraction = SubtitleView.DEFAULT_BOTTOM_PADDING_FRACTION * 2f / 3f
         val offsetFraction = (style.bottomOffset / 1000f).coerceIn(0f, 0.2f)
@@ -2159,7 +2175,7 @@ private fun PlayerView.applySubtitleStyle(style: SubtitleStyleState, pipVideoHei
                 android.graphics.Color.TRANSPARENT,
                 if (style.outlineEnabled) CaptionStyleCompat.EDGE_TYPE_OUTLINE else CaptionStyleCompat.EDGE_TYPE_NONE,
                 style.outlineColor.toArgb(),
-                if (style.bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT,
+                SubtitleTypefaces.forStyle(style),
             )
         )
         val fontSizeSp = style.fontSizeSp.toFloat()
@@ -2427,6 +2443,7 @@ private class CueNormalizingTextOutput(
         if (shouldNormalizeCuePositionProvider()) {
             processed = normalizeCuePosition(processed)
         }
+        processed = ExoSubtitleShadow.apply(processed)
         if (processed.bitmap != null) {
             val bounds = videoBoundsFractionProvider()
             if (bounds != null && bounds.width() > 0f && bounds.height() > 0f) {

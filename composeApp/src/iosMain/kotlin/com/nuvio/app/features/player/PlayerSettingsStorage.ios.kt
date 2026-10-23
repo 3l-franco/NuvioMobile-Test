@@ -38,6 +38,9 @@ actual object PlayerSettingsStorage {
     private const val secondaryPreferredSubtitleLanguageKey = "secondary_preferred_subtitle_language"
     private const val subtitleTextColorKey = "subtitle_text_color"
     private const val subtitleBackgroundColorKey = "subtitle_background_color"
+    private const val subtitleCustomFontKey = "subtitle_custom_font"
+    private const val subtitleShadowEnabledKey = "subtitle_shadow_enabled"
+    private const val subtitleShadowStrengthKey = "subtitle_shadow_strength"
     private const val subtitleOutlineColorKey = "subtitle_outline_color"
     private const val subtitleOutlineEnabledKey = "subtitle_outline_enabled"
     private const val subtitleOutlineWidthKey = "subtitle_outline_width"
@@ -128,6 +131,8 @@ actual object PlayerSettingsStorage {
         subtitleOutlineColorKey,
         subtitleOutlineEnabledKey,
         subtitleOutlineWidthKey,
+        subtitleShadowEnabledKey,
+        subtitleShadowStrengthKey,
         subtitleBoldKey,
         subtitleFontSizeSpKey,
         subtitleBottomOffsetKey,
@@ -480,6 +485,34 @@ actual object PlayerSettingsStorage {
 
     actual fun saveSubtitleOutlineEnabled(enabled: Boolean) {
         NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(subtitleOutlineEnabledKey))
+    }
+
+    actual fun loadSubtitleCustomFont(): String? =
+        NSUserDefaults.standardUserDefaults.stringForKey(ProfileScopedKey.of(subtitleCustomFontKey))
+
+    actual fun saveSubtitleCustomFont(fileName: String?) {
+        val key = ProfileScopedKey.of(subtitleCustomFontKey)
+        if (fileName.isNullOrBlank()) {
+            NSUserDefaults.standardUserDefaults.removeObjectForKey(key)
+        } else {
+            NSUserDefaults.standardUserDefaults.setObject(fileName, forKey = key)
+        }
+    }
+
+    actual fun loadSubtitleShadowEnabled(): Boolean? {
+        val defaults = NSUserDefaults.standardUserDefaults
+        val key = ProfileScopedKey.of(subtitleShadowEnabledKey)
+        return if (defaults.objectForKey(key) != null) defaults.boolForKey(key) else null
+    }
+
+    actual fun saveSubtitleShadowEnabled(enabled: Boolean) {
+        NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(subtitleShadowEnabledKey))
+    }
+
+    actual fun loadSubtitleShadowStrength(): Int? = loadInt(subtitleShadowStrengthKey)
+
+    actual fun saveSubtitleShadowStrength(strength: Int) {
+        saveInt(subtitleShadowStrengthKey, strength.coerceIn(SUBTITLE_SHADOW_STRENGTH_MIN, SUBTITLE_SHADOW_STRENGTH_MAX))
     }
 
     actual fun loadSubtitleOutlineWidth(): Int? = loadInt(subtitleOutlineWidthKey)
@@ -1099,6 +1132,8 @@ actual object PlayerSettingsStorage {
         loadSubtitleBackgroundColor()?.let { put(subtitleBackgroundColorKey, encodeSyncString(it)) }
         loadSubtitleOutlineColor()?.let { put(subtitleOutlineColorKey, encodeSyncString(it)) }
         loadSubtitleOutlineEnabled()?.let { put(subtitleOutlineEnabledKey, encodeSyncBoolean(it)) }
+        loadSubtitleShadowEnabled()?.let { put(subtitleShadowEnabledKey, encodeSyncBoolean(it)) }
+        loadSubtitleShadowStrength()?.let { put(subtitleShadowStrengthKey, encodeSyncInt(it)) }
         loadSubtitleOutlineWidth()?.let { put(subtitleOutlineWidthKey, encodeSyncInt(it)) }
         loadSubtitleBold()?.let { put(subtitleBoldKey, encodeSyncBoolean(it)) }
         loadSubtitleFontSizeSp()?.let { put(subtitleFontSizeSpKey, encodeSyncInt(it)) }
@@ -1180,6 +1215,8 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncString(subtitleBackgroundColorKey)?.let(::saveSubtitleBackgroundColor)
         payload.decodeSyncString(subtitleOutlineColorKey)?.let(::saveSubtitleOutlineColor)
         payload.decodeSyncBoolean(subtitleOutlineEnabledKey)?.let(::saveSubtitleOutlineEnabled)
+        payload.decodeSyncBoolean(subtitleShadowEnabledKey)?.let(::saveSubtitleShadowEnabled)
+        payload.decodeSyncInt(subtitleShadowStrengthKey)?.let(::saveSubtitleShadowStrength)
         payload.decodeSyncInt(subtitleOutlineWidthKey)?.let(::saveSubtitleOutlineWidth)
         payload.decodeSyncBoolean(subtitleBoldKey)?.let(::saveSubtitleBold)
         payload.decodeSyncInt(subtitleFontSizeSpKey)?.let(::saveSubtitleFontSizeSp)

@@ -23,6 +23,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -33,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.nuvio
+import com.nuvio.app.features.settings.SubtitleFontDialog
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_action_off
 import nuvio.composeapp.generated.resources.compose_action_on
@@ -41,6 +48,8 @@ import nuvio.composeapp.generated.resources.compose_player_bold
 import nuvio.composeapp.generated.resources.compose_player_bottom_offset
 import nuvio.composeapp.generated.resources.compose_player_capture_line
 import nuvio.composeapp.generated.resources.compose_player_color
+import nuvio.composeapp.generated.resources.compose_player_font
+import nuvio.composeapp.generated.resources.compose_player_font_default
 import nuvio.composeapp.generated.resources.compose_player_font_size
 import nuvio.composeapp.generated.resources.compose_player_font_size_value
 import nuvio.composeapp.generated.resources.compose_player_loading_lines
@@ -50,11 +59,15 @@ import nuvio.composeapp.generated.resources.compose_player_outline_color
 import nuvio.composeapp.generated.resources.compose_player_reload
 import nuvio.composeapp.generated.resources.compose_player_reset
 import nuvio.composeapp.generated.resources.compose_player_reset_defaults
+import nuvio.composeapp.generated.resources.compose_player_shadow
+import nuvio.composeapp.generated.resources.compose_player_shadow_strength
 import nuvio.composeapp.generated.resources.compose_player_select_addon_subtitle_first
 import nuvio.composeapp.generated.resources.compose_player_style
 import nuvio.composeapp.generated.resources.compose_player_subtitle_delay
 import nuvio.composeapp.generated.resources.compose_player_text_opacity
 import org.jetbrains.compose.resources.stringResource
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -73,6 +86,11 @@ fun SubtitleStylePanel(
     onAutoSyncCueSelected: (SubtitleSyncCue) -> Unit,
     onAutoSyncReload: () -> Unit,
 ) {
+    var showSubtitleFontDialog by remember { mutableStateOf(false) }
+    val subtitleFonts by SubtitleFontRepository.fonts.collectAsState()
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.Default) { SubtitleFontRepository.ensureLoaded() }
+    }
     val sectionGap = if (isCompact) 12.dp else 16.dp
 
     Column(
@@ -117,6 +135,31 @@ fun SubtitleStylePanel(
                     onStyleChanged(style.copy(fontSizeSp = (style.fontSizeSp + 2).coerceAtMost(subtitleFontSizeRangeSp.last)))
                 },
             )
+        }
+
+        SubtitleStyleSection(title = stringResource(Res.string.compose_player_font)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .clickable { showSubtitleFontDialog = true }
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = subtitleFonts.firstOrNull { it.fileName == style.customFontFile }?.familyName
+                        ?: stringResource(Res.string.compose_player_font_default),
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    text = "Change",
+                    color = Color.White.copy(alpha = 0.7f),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
         }
 
         SubtitleStyleSection(title = stringResource(Res.string.compose_player_bold)) {
@@ -171,6 +214,29 @@ fun SubtitleStylePanel(
             )
         }
 
+        SubtitleStyleSection(title = stringResource(Res.string.compose_player_shadow)) {
+            SubtitleToggleChip(
+                enabled = style.shadowEnabled,
+                onClick = { onStyleChanged(style.copy(shadowEnabled = !style.shadowEnabled)) },
+            )
+            if (style.shadowEnabled) {
+                Text(
+                    text = stringResource(Res.string.compose_player_shadow_strength),
+                    color = Color.White.copy(alpha = 0.72f),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                SubtitleStyleStepper(
+                    value = style.shadowStrength.toString(),
+                    onDecrease = {
+                        onStyleChanged(style.copy(shadowStrength = (style.shadowStrength - 1).coerceAtLeast(SUBTITLE_SHADOW_STRENGTH_MIN)))
+                    },
+                    onIncrease = {
+                        onStyleChanged(style.copy(shadowStrength = (style.shadowStrength + 1).coerceAtMost(SUBTITLE_SHADOW_STRENGTH_MAX)))
+                    },
+                )
+            }
+        }
+
         SubtitleStyleSection(title = stringResource(Res.string.compose_player_bottom_offset)) {
             SubtitleStyleStepper(
                 value = style.bottomOffset.toString(),
@@ -194,6 +260,14 @@ fun SubtitleStylePanel(
         SubtitleResetAction(
             label = stringResource(Res.string.compose_player_reset_defaults),
             onClick = { onStyleChanged(SubtitleStyleState.DEFAULT) },
+        )
+    }
+
+    if (showSubtitleFontDialog) {
+        SubtitleFontDialog(
+            selectedFontFile = style.customFontFile,
+            onFontSelected = { fileName -> onStyleChanged(style.copy(customFontFile = fileName)) },
+            onDismiss = { showSubtitleFontDialog = false },
         )
     }
 }
