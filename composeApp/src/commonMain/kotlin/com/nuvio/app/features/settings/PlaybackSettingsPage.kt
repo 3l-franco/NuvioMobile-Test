@@ -724,7 +724,7 @@ private fun PlaybackSettingsSection(
                     SettingsSliderRow(
                         title = stringResource(Res.string.settings_playback_subtitle_shadow_strength),
                         value = subtitleStyle.shadowStrength,
-                        formatValue = { it.toString() },
+                        valueText = { strength -> strength.toString() },
                         valueRange = SUBTITLE_SHADOW_STRENGTH_MIN..SUBTITLE_SHADOW_STRENGTH_MAX,
                         step = 1,
                         isTablet = isTablet,
