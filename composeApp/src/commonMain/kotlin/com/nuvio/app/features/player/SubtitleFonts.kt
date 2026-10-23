@@ -139,7 +139,10 @@ internal object OpenTypeNameReader {
     private const val TAG_NAME = 0x6E616D65
 
     fun fileExtension(bytes: ByteArray): String = when (bytes.u32(0)) {
-        TAG_TTCF -> "ttc"
+        TAG_TTCF -> runCatching {
+            val firstFaceOffset = bytes.u32(12)
+            if (bytes.u32(firstFaceOffset) == TAG_OTTO) "otc" else "ttc"
+        }.getOrDefault("ttc")
         TAG_OTTO -> "otf"
         else -> "ttf"
     }
