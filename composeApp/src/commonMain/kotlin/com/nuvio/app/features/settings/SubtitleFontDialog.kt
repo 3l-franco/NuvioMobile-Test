@@ -159,6 +159,7 @@ private fun SubtitleFontChoiceRow(
     val shape = tokens.shapes.compactCard
     Row(
         modifier = modifier
+            .fillMaxWidth()
             .clip(shape)
             .background(
                 if (selected) {
