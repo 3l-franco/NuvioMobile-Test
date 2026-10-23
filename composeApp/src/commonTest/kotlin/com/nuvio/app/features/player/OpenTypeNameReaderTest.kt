@@ -27,7 +27,26 @@ class OpenTypeNameReaderTest {
     fun identifiesTrueTypeAndOpenTypeFileExtensions() {
         assertEquals("ttf", OpenTypeNameReader.fileExtension(fontFixture()))
         assertEquals("otf", OpenTypeNameReader.fileExtension(fontFixture(signature = 0x4F54544F)))
-        assertEquals("ttc", OpenTypeNameReader.fileExtension(fontFixture(signature = 0x74746366)))
+        assertEquals("ttc", OpenTypeNameReader.fileExtension(collectionFixture(faceSignature = 0x00010000)))
+        assertEquals("otc", OpenTypeNameReader.fileExtension(collectionFixture(faceSignature = 0x4F54544F)))
+    }
+
+    private fun collectionFixture(faceSignature: Int): ByteArray {
+        val bytes = ByteArray(20)
+
+        fun writeU32(offset: Int, value: Int) {
+            bytes[offset] = (value ushr 24).toByte()
+            bytes[offset + 1] = (value ushr 16).toByte()
+            bytes[offset + 2] = (value ushr 8).toByte()
+            bytes[offset + 3] = value.toByte()
+        }
+
+        writeU32(0, 0x74746366) // TTC collection signature
+        writeU32(4, 0x00010000) // collection version
+        writeU32(8, 1) // one face
+        writeU32(12, 16) // first face offset
+        writeU32(16, faceSignature)
+        return bytes
     }
 
     private fun fontFixture(
