@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import AVFoundation
+import CoreText
 import Libmpv
 import ComposeApp
 
@@ -173,11 +174,13 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
     func clearExternalSubtitle() { playerVC?.removeExternalSubtitles() }
     func clearExternalSubtitleAndSelect(trackId: Int32) { playerVC?.removeExternalSubtitlesAndSelect(Int(trackId)) }
     func setSubtitleDelayMs(delayMs: Int32) { playerVC?.setSubtitleDelayMs(Int(delayMs)) }
+    func setSubtitleFontPath(path: String) { ensurePlayerViewController().setSubtitleFontPath(path: path) }
     func applySubtitleStyle(
         textColor: String,
         backgroundColor: String,
         outlineColor: String,
         outlineSize: Float,
+        shadowOffset: Float,
         bold: Bool,
         fontSize: Float,
         subPos: Int32,
@@ -188,6 +191,7 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
             backgroundColor: backgroundColor,
             outlineColor: outlineColor,
             outlineSize: outlineSize,
+            shadowOffset: shadowOffset,
             bold: bold,
             fontSize: fontSize,
             subPos: Int(subPos),
@@ -281,6 +285,7 @@ final class MPVPlayerViewController: UIViewController {
     private var pendingLoadRequest: PendingLoadRequest?
     private var pendingLoadRetryWorkItem: DispatchWorkItem?
     private var mpv: OpaquePointer?
+    private var selectedSubtitleFontPath: String?
     private var cachedNowPlayingMetadata: CachedNowPlayingMetadata?
     private lazy var nowPlayingController = PlayerNowPlayingController(owner: self)
     private lazy var audioSessionController: PlayerAudioSessionController = {
@@ -542,6 +547,7 @@ final class MPVPlayerViewController: UIViewController {
         checkError(mpv_set_option_string(mpv, "hdr-compute-peak", "yes"))
 
         checkError(mpv_initialize(mpv))
+        applySubtitleFontPath(selectedSubtitleFontPath)
         applyAudioLanguagePreferences(preferredAudioLanguages)
 
         // Observe properties
@@ -908,11 +914,39 @@ final class MPVPlayerViewController: UIViewController {
         checkError(mpv_set_property(mpv, "sub-delay", MPV_FORMAT_DOUBLE, &delaySeconds))
     }
 
+    func setSubtitleFontPath(path: String) {
+        let trimmedPath = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        selectedSubtitleFontPath = trimmedPath.isEmpty ? nil : trimmedPath
+        applySubtitleFontPath(selectedSubtitleFontPath)
+    }
+
+    private func applySubtitleFontPath(_ path: String?) {
+        guard mpv != nil else { return }
+        guard let path else {
+            setStringProperty("sub-font", "Noto Sans CJK SC")
+            return
+        }
+
+        let fontURL = URL(fileURLWithPath: path)
+        var registrationError: Unmanaged<CFError>?
+        _ = CTFontManagerRegisterFontsForURL(fontURL as CFURL, .process, &registrationError)
+        let descriptors = CTFontManagerCreateFontDescriptorsFromURL(fontURL as CFURL) as? [CTFontDescriptor]
+        if let family = descriptors?.compactMap({
+            CTFontDescriptorCopyAttribute($0, kCTFontFamilyNameAttribute) as? String
+        }).first, !family.isEmpty {
+            setStringProperty("sub-font", family)
+        } else {
+            setStringProperty("sub-font", "Noto Sans CJK SC")
+            print("[MPV] Unable to resolve custom subtitle font: \(fontURL.lastPathComponent)")
+        }
+    }
+
     func applySubtitleStyle(
         textColor: String,
         backgroundColor: String,
         outlineColor: String,
         outlineSize: Float,
+        shadowOffset: Float,
         bold: Bool,
         fontSize: Float,
         subPos: Int,
@@ -932,6 +966,9 @@ final class MPVPlayerViewController: UIViewController {
 
         var size = Double(fontSize)
         checkError(mpv_set_property(mpv, "sub-font-size", MPV_FORMAT_DOUBLE, &size))
+
+        var shadow = Double(max(0, shadowOffset))
+        checkError(mpv_set_property(mpv, "sub-shadow-offset", MPV_FORMAT_DOUBLE, &shadow))
 
         var position = Int64(subPos)
         checkError(mpv_set_property(mpv, "sub-pos", MPV_FORMAT_INT64, &position))
