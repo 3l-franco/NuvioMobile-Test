@@ -56,11 +56,17 @@ internal actual fun rememberSubtitleFontImporter(
                 onPicked = { url ->
                     val didStartAccess = url.startAccessingSecurityScopedResource()
                     try {
-                        if (url.exceedsSubtitleFontSizeLimit()) {
-                            currentOnTooLarge()
-                        } else {
-                            val bytes = url.readBytes()
-                            if (bytes == null) currentOnError() else currentOnPicked(url.lastPathComponent, bytes)
+                        when (url.subtitleFontSizeLimitExceeded()) {
+                            true -> currentOnTooLarge()
+                            false -> {
+                                val bytes = url.readBytes()
+                                when {
+                                    bytes == null -> currentOnError()
+                                    bytes.size.toLong() > SubtitleFontRepository.MAX_FONT_BYTES -> currentOnTooLarge()
+                                    else -> currentOnPicked(url.lastPathComponent, bytes)
+                                }
+                            }
+                            null -> currentOnError()
                         }
                     } catch (_: Throwable) {
                         currentOnError()
@@ -78,10 +84,15 @@ internal actual fun rememberSubtitleFontImporter(
     }
 }
 
-private fun NSURL.exceedsSubtitleFontSizeLimit(): Boolean {
-    val filePath = path ?: return false
+/**
+ * Returns null when file metadata is unavailable. Fail closed in that case so an unknown-sized
+ * document cannot be loaded into memory without the importer's size guard.
+ */
+private fun NSURL.subtitleFontSizeLimitExceeded(): Boolean? {
+    val filePath = path ?: return null
     val attributes = NSFileManager.defaultManager.attributesOfItemAtPath(filePath, error = null)
-    val size = (attributes?.get(NSFileSize) as? NSNumber)?.longLongValue ?: return false
+        ?: return null
+    val size = (attributes[NSFileSize] as? NSNumber)?.longLongValue ?: return null
     return size > SubtitleFontRepository.MAX_FONT_BYTES
 }
 
