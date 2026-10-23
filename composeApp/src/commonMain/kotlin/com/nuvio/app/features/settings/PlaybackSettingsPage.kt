@@ -76,8 +76,6 @@ import com.nuvio.app.features.player.SubtitleBackgroundColorSwatches
 import com.nuvio.app.features.player.SubtitleColorSwatches
 import com.nuvio.app.features.player.SubtitleLanguageOption
 import com.nuvio.app.features.player.SubtitleFontRepository
-import com.nuvio.app.features.player.SUBTITLE_SHADOW_STRENGTH_MIN
-import com.nuvio.app.features.player.SUBTITLE_SHADOW_STRENGTH_MAX
 import com.nuvio.app.features.player.formatPlaybackSpeedLabel
 import com.nuvio.app.features.player.languageLabelForCode
 import com.nuvio.app.features.player.subtitleFontSizeRangeSp
@@ -707,31 +705,6 @@ private fun PlaybackSettingsSection(
                         enabled = subtitleRenderingEnabled,
                         isTablet = isTablet,
                         onClick = { showSubtitleOutlineColorDialog = true },
-                    )
-                }
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_playback_subtitle_shadow),
-                    description = stringResource(Res.string.settings_playback_subtitle_shadow_description),
-                    checked = subtitleStyle.shadowEnabled,
-                    enabled = subtitleRenderingEnabled,
-                    isTablet = isTablet,
-                    onCheckedChange = { enabled ->
-                        PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(shadowEnabled = enabled))
-                    },
-                )
-                if (subtitleStyle.shadowEnabled) {
-                    SettingsGroupDivider(isTablet = isTablet)
-                    SettingsSliderRow(
-                        title = stringResource(Res.string.settings_playback_subtitle_shadow_strength),
-                        value = subtitleStyle.shadowStrength,
-                        valueText = { strength -> strength.toString() },
-                        valueRange = SUBTITLE_SHADOW_STRENGTH_MIN..SUBTITLE_SHADOW_STRENGTH_MAX,
-                        step = 1,
-                        isTablet = isTablet,
-                        enabled = subtitleRenderingEnabled,
-                        onValueChange = { value ->
-                            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(shadowStrength = value))
-                        },
                     )
                 }
                 val showLibassSettings = !isIos && androidPlaybackEngine != AndroidPlaybackEngine.Libmpv
