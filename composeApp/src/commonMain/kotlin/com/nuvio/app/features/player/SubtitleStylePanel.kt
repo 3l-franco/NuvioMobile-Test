@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -20,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Remove
-import androidx.compose.material.icons.rounded.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -89,7 +87,6 @@ fun SubtitleStylePanel(
     onAutoSyncReload: () -> Unit,
 ) {
     var showSubtitleFontDialog by remember { mutableStateOf(false) }
-    val tokens = MaterialTheme.nuvio
     val subtitleFonts by SubtitleFontRepository.fonts.collectAsState()
     LaunchedEffect(Unit) {
         withContext(Dispatchers.Default) { SubtitleFontRepository.ensureLoaded() }
@@ -141,58 +138,26 @@ fun SubtitleStylePanel(
         }
 
         SubtitleStyleSection(title = stringResource(Res.string.compose_player_font)) {
-            val selectedFont = subtitleFonts.firstOrNull { it.fileName == style.customFontFile }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color.White.copy(alpha = 0.06f))
-                    .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(12.dp))
+                    .background(Color.White.copy(alpha = 0.08f))
                     .clickable { showSubtitleFontDialog = true }
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(tokens.colors.accent.copy(alpha = tokens.opacity.pressed)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "Aa",
-                        color = tokens.colors.accent,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    Text(
-                        text = selectedFont?.familyName ?: stringResource(Res.string.compose_player_font_default),
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (selectedFont != null) {
-                        Text(
-                            text = selectedFont.fileName,
-                            color = Color.White.copy(alpha = 0.62f),
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-                Icon(
-                    imageVector = Icons.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.72f),
-                    modifier = Modifier.size(22.dp),
+                Text(
+                    text = subtitleFonts.firstOrNull { it.fileName == style.customFontFile }?.familyName
+                        ?: stringResource(Res.string.compose_player_font_default),
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    text = "Change",
+                    color = Color.White.copy(alpha = 0.7f),
+                    style = MaterialTheme.typography.bodySmall,
                 )
             }
         }
@@ -260,10 +225,13 @@ fun SubtitleStylePanel(
                     color = Color.White.copy(alpha = 0.72f),
                     style = MaterialTheme.typography.bodySmall,
                 )
-                SubtitleShadowStrengthPicker(
-                    selectedStrength = style.shadowStrength,
-                    onStrengthSelected = { strength ->
-                        onStyleChanged(style.copy(shadowStrength = strength))
+                SubtitleStyleStepper(
+                    value = style.shadowStrength.toString(),
+                    onDecrease = {
+                        onStyleChanged(style.copy(shadowStrength = (style.shadowStrength - 1).coerceAtLeast(SUBTITLE_SHADOW_STRENGTH_MIN)))
+                    },
+                    onIncrease = {
+                        onStyleChanged(style.copy(shadowStrength = (style.shadowStrength + 1).coerceAtMost(SUBTITLE_SHADOW_STRENGTH_MAX)))
                     },
                 )
             }
@@ -403,48 +371,6 @@ private fun SubtitleToggleChip(
             color = if (enabled) tokens.colors.onAccent else Color.White,
             style = MaterialTheme.typography.labelLarge,
         )
-    }
-}
-
-@Composable
-private fun SubtitleShadowStrengthPicker(
-    selectedStrength: Int,
-    onStrengthSelected: (Int) -> Unit,
-) {
-    val tokens = MaterialTheme.nuvio
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        (SUBTITLE_SHADOW_STRENGTH_MIN..SUBTITLE_SHADOW_STRENGTH_MAX).forEach { strength ->
-            val selected = strength == selectedStrength
-            val shape = RoundedCornerShape(10.dp)
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 40.dp)
-                    .clip(shape)
-                    .background(
-                        if (selected) tokens.colors.accent else Color.White.copy(alpha = 0.06f),
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = if (selected) tokens.colors.accent else Color.White.copy(alpha = 0.12f),
-                        shape = shape,
-                    )
-                    .clickable { onStrengthSelected(strength) }
-                    .padding(vertical = 10.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = strength.toString(),
-                    color = if (selected) tokens.colors.onAccent else Color.White,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                )
-            }
-        }
     }
 }
 
